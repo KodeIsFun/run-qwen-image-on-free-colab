@@ -38,6 +38,20 @@ The two lines differ by **9.7×** — and neither knob is what people guess:
 - "Use a smaller quant for speed" does nothing: the step is compute-bound.
   Quants decide *what fits in VRAM*, not how fast it runs.
 
+## The images these settings produce
+
+Both generated on a free Colab T4 with exactly this repo's combo —
+768×768, 12 steps, cfg 2.5, Q4_K_M GGUF, fp16, seed 42 (raw outputs from the
+measured run, untouched):
+
+| Photoreal | Text rendering |
+|---|---|
+| ![A siamese cat in a tiny yellow raincoat on wet cobblestones at night, neon city bokeh](samples/v2b_fp16_p1_cat_raincoat.png) | ![A neon shop sign reading FREE GPU LAB, rainy night, reflections on wet pavement](samples/v2b_fp16_p2_freegpulab_sign.png) |
+| "a siamese cat wearing a tiny yellow raincoat, sitting on wet cobblestones at night, neon city lights bokeh, 50mm lens" — 127.9 s incl. model loads | "a neon shop sign that reads \"FREE GPU LAB\", rainy night, reflections on wet pavement" — every word spelled correctly, 79.2 s warm |
+
+That second one is the point: **text rendering survives quantization +
+fp16 + 12 steps.**
+
 Text rendering survives quantization + fp16 + 12 steps: the standard test
 prompt produces a neon sign that reads **FREE GPU LAB**, spelled correctly.
 Proof artifacts from the verification run ship in
@@ -70,6 +84,7 @@ SKILL.md                     ← agents start here (routing + 9 invariants)
 colab/run-qwen-image-t4.ipynb        ← the notebook (built, verified on a fresh T4)
 colab/run-qwen-image-t4_output.ipynb ← the executed notebook from the verification run
 colab/proof-served-through-tunnel.png ← image fetched through the public tunnel
+samples/                     ← the two raw outputs from the measured combo run (embedded above)
 clients/txt2img.py           ← stdlib-only client, works from any machine
 workflows/t2i-api.json       ← the exact verified ComfyUI workflow graph
 references/01-manual-steps.md    ← the human's (tiny) part, verbatim scripts to say
