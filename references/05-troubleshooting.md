@@ -94,10 +94,40 @@ source at 1024²+ (peak 91 % measured).
 The notebook uses `wget -c --tries=3` and checks the target size before
 skipping. If a file < 100 MB exists where a multi-GB file should be, delete
 it and re-run the download cell. Hugging Face serves these repos via CDN;
-~100 MB/s is normal on Colab (14.6 GB total ≈ 3 min).
+~100 MB/s is normal on Colab (~15.6 GB total ≈ 3 min).
 
 ## 12. `FileNotFoundError: /content/ComfyUI` in an agent script
 
 The script assumed a previous session's state. Every job must be
 **fresh-VM safe**: clone/install/download with `if not exists` skips (see
 the notebook's cells 2–3 for the pattern).
+
+## 13. `download failed: .../qwen-image-2.1-Q4_K_M.gguf` (GitHub issue #1)
+
+The notebook asserts every download is > 100 MB; this assertion firing on
+the diffusion GGUF means Hugging Face returned a 404 body. Cause: abenzerps
+restructured `Qwen-Image-2.1-GGUF` into `Qwen-Image-2.1-Uncensored-GGUF` and
+dropped the base diffusion file. **Fixed 2026-09-26**: the notebook (and
+every doc here) now pulls the GGUF from
+[unsloth/Qwen-Image-2.1-GGUF](https://huggingface.co/unsloth/Qwen-Image-2.1-GGUF)
+— the base model, which is also the distribution the turbo LoRA was
+distilled on. TE + VAE still resolve at abenzerps' paths. If you are on an
+old checkout: `git pull`, delete the partial file (`rm
+/content/ComfyUI/models/diffusion_models/qwen-image-2.1-Q4_K_M.gguf`), and
+re-run the download cell. `wget -c` cannot resume from a 404 husk — the husk
+must go.
+
+## 14. `ViggleTurboLora`/`ViggleTurboSigmas` missing from `/object_info`, or a turbo generation errors
+
+The turbo graph needs Viggle's custom node: the notebook's cell 2 fetches
+`viggle_turbo.py` from the
+[Viggle repo](https://huggingface.co/Viggle/Qwen-Image-2.1-viggle-turbo)
+into `custom_nodes/`. Custom nodes load at **server boot** — after adding
+the file, restart the runtime (or kill the 8188 process) and re-run from
+cell 4. If the node loads but a turbo generation errors (the author calls
+the ComfyUI port "vibe-coded", verified end-to-end only against diffusers),
+fall back to the **baseline graph**: `txt2img.py --no-turbo` (12 steps, cfg
+2.5, ~69 s warm). A stock `LoraLoaderModelOnly` merge is a last resort for
+speed — quality caveat: the author measures ~70 % of the LoRA update lost on
+bf16 merges, worse on quantized weights, and stock samplers cannot express
+the turbo sigma schedule (approximation only).

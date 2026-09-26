@@ -6,7 +6,7 @@ and there are exactly two paths. As the agent, read the path that applies and
 
 ## Path A — browser only (no tools, no CLI, works for anyone)
 
-Total human effort: ~2 minutes of clicking, then ~12 minutes of waiting.
+Total human effort: ~2 minutes of clicking, then ~10 minutes of waiting.
 
 1. **Have a Google account.** That is the only prerequisite. Free tier gives
    a T4 GPU with usage limits that reset daily; a normal first run fits
@@ -26,8 +26,9 @@ Total human effort: ~2 minutes of clicking, then ~12 minutes of waiting.
    has no GPU — if it warns, redo this step.
 4. **Run all**: menu *Runtime → Run all*, then approve the "not authored by
    Google" warning. Cells print `OK: ...` as they finish.
-5. **Wait ~12 minutes.** Install ≈ 1 min, downloads ≈ 4 min, model boot ≈
-   2 min, first image ≈ 2.5 min, tunnel ≈ 15 s. The notebook shows progress.
+5. **Wait ~10 minutes.** Install ≈ 1 min, downloads ≈ 3–4 min (15.6 GB),
+   model boot ≈ 2 min, first image ≈ 2 min (model loads; warm images after
+   it run ~21 s), tunnel ≈ 15 s. The notebook shows progress.
 6. **Copy the line that looks like**
 
    ```
@@ -54,7 +55,7 @@ Total human effort: ~2 minutes of clicking, then ~12 minutes of waiting.
 - The free VM **sleeps when idle** and is reclaimed eventually (Colab caps
   sessions). Anything long-lived needs the re-run, or a paid tier, or a
   Kaggle/persistent box. The notebook is designed so a re-run costs one click
-  and ~12 minutes.
+  and ~10 minutes.
 - The model is **Qwen Research License** — fine for experiments, research,
   and demos; check the license before a commercial product.
 

@@ -27,8 +27,11 @@ python3 clients/txt2img.py \
   --out my-image.png
 ```
 
-Options: `--steps 12 --cfg 2.5 --width 768 --height 768 --seed 42
---negative ""` (defaults = the measured combo). Requires only Python 3 —
+Options: `--no-turbo --steps 12 --cfg 2.5 --width 768 --height 768 --seed 42
+--negative ""`. **Default is the turbo graph** (6 steps, CFG off, ~21 s warm;
+`--steps`/`--cfg` are ignored there — the schedule and CFG-off are part of
+the recipe). `--no-turbo` runs the 12-step no-LoRA baseline with the options
+above (defaults = the measured baseline combo). Requires only Python 3 —
 no pip installs. This client was tested end-to-end from a machine outside
 Colab through the tunnel; the proof PNG ships in this repo at
 `colab/proof-served-through-tunnel.png`.
@@ -49,10 +52,16 @@ curl -s "$URL/view?filename=<name>&subfolder=&type=output" -o out.png
 
 ## Raw workflow JSON
 
-`workflows/t2i-api.json` is the exact verified graph (Q4_K_M GGUF loader,
-`qwen_image` CLIP loader, VAE, 768² latent, KSampler res_multistep/simple,
-VAE decode, SaveImage). POST it wrapped as `{"prompt": <graph>,
-"client_id": "anything"}`. Node IDs are strings; links are `["<node>", <output_index>]`.
+- `workflows/t2i-turbo.json` — the verified **turbo** graph (default):
+  ViggleTurboLora runtime-hook LoRA, CFG off via BasicGuider, euler +
+  ViggleTurboSigmas, SamplerCustomAdvanced. ~21 s warm at 768².
+- `workflows/t2i-api.json` — the verified no-LoRA **baseline** graph:
+  Q4_K_M GGUF loader, `qwen_image` CLIP loader, VAE, 768² latent, KSampler
+  res_multistep/simple, VAE decode, SaveImage. ~69 s warm on the same
+  weights.
+
+POST either wrapped as `{"prompt": <graph>, "client_id": "anything"}`.
+Node IDs are strings; links are `["<node>", <output_index>]`.
 
 ## Operational truths
 
@@ -63,9 +72,10 @@ VAE decode, SaveImage). POST it wrapped as `{"prompt": <graph>,
 - **One generation at a time** is the sane default on the T4; ComfyUI queues
   additional `/prompt` submissions rather than rejecting them, so a client
   can fire-and-poll multiple prompts safely (they just run serially).
-- **Timeouts**: a combo-settings image takes ~80–130 s end to end (queue +
-  text encode + 12 steps + VAE). Poll `/history` every ~3 s; give up after
-  ~25 min (that is a stuck queue, not slowness — see troubleshooting §9).
+- **Timeouts**: a turbo image takes ~20–30 s warm at 768² (plus first-image
+  model load, ~1.5 min); the no-LoRA baseline ~70–130 s. Poll `/history`
+  every ~3 s; give up after ~25 min (that is a stuck queue, not slowness —
+  see troubleshooting §9).
 - **Health check**: `GET /system_stats` → 200 with JSON means the server is
   alive. (There is no `/health`.)
 - **Do not ship the tunnel URL anywhere public.** Anyone with it can queue

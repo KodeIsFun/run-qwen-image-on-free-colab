@@ -1,0 +1,95 @@
+{
+ "_comment": "The exact verified TURBO text-to-image graph for Qwen-Image-2.1 Q4_K_M GGUF on a free T4 (Viggle turbo LoRA v0.2.1, r128). POST to /prompt wrapped as {\"prompt\": <this object>, \"client_id\": \"x\"}. Settings = the measured turbo combo: 768x768, 6 steps, CFG fully OFF (BasicGuider runs no negative pass), euler, runtime-hook LoRA at strength 1.0, seed 42 -> ~21 s warm. The LoRA must never be merged into the weights and the sigma schedule must stay ViggleTurboSigmas (stock samplers cannot express it). Requires the server-side viggle_turbo.py custom node (the notebook installs it) and the LoRA file in models/loras/. Baseline (no-LoRA) graph: workflows/t2i-api.json. Numbers trace to timings_v4_turbo.json in the GPUTests lab repo. See references/04-tweaking.md before changing values.",
+ "1": {
+  "class_type": "UnetLoaderGGUF",
+  "inputs": {
+   "unet_name": "qwen-image-2.1-Q4_K_M.gguf"
+  }
+ },
+ "2": {
+  "class_type": "CLIPLoader",
+  "inputs": {
+   "clip_name": "qwen3vl_8b_int8_convrot.safetensors",
+   "type": "qwen_image"
+  }
+ },
+ "3": {
+  "class_type": "VAELoader",
+  "inputs": {
+   "vae_name": "qwen_image_2.1_vae_bf16.safetensors"
+  }
+ },
+ "4": {
+  "class_type": "CLIPTextEncode",
+  "inputs": {
+   "clip": ["2", 0],
+   "text": "a neon shop sign that reads \"FREE GPU LAB\", rainy night, reflections on wet pavement"
+  }
+ },
+ "5": {
+  "class_type": "ViggleTurboLora",
+  "inputs": {
+   "model": ["1", 0],
+   "lora_name": "Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r128.safetensors",
+   "strength": 1.0
+  }
+ },
+ "6": {
+  "class_type": "EmptySD3LatentImage",
+  "inputs": {
+   "width": 768,
+   "height": 768,
+   "batch_size": 1
+  }
+ },
+ "7": {
+  "class_type": "RandomNoise",
+  "inputs": {
+   "noise_seed": 42
+  }
+ },
+ "8": {
+  "class_type": "KSamplerSelect",
+  "inputs": {
+   "sampler_name": "euler"
+  }
+ },
+ "9": {
+  "class_type": "ViggleTurboSigmas",
+  "inputs": {
+   "latent": ["6", 0],
+   "nodes": "1.0, 0.9375, 0.875, 0.75, 0.5, 0.25"
+  }
+ },
+ "10": {
+  "class_type": "BasicGuider",
+  "inputs": {
+   "model": ["5", 0],
+   "conditioning": ["4", 0]
+  }
+ },
+ "11": {
+  "class_type": "SamplerCustomAdvanced",
+  "inputs": {
+   "noise": ["7", 0],
+   "guider": ["10", 0],
+   "sampler": ["8", 0],
+   "sigmas": ["9", 0],
+   "latent_image": ["6", 0]
+  }
+ },
+ "12": {
+  "class_type": "VAEDecode",
+  "inputs": {
+   "samples": ["11", 0],
+   "vae": ["3", 0]
+  }
+ },
+ "13": {
+  "class_type": "SaveImage",
+  "inputs": {
+   "images": ["12", 0],
+   "filename_prefix": "qwen_t4_turbo"
+  }
+ }
+}

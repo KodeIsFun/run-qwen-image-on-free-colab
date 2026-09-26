@@ -16,18 +16,20 @@ MD_TITLE = """\
 # Qwen-Image-2.1 on a free Colab T4 — text-to-image + a public API
 
 Runs **Qwen-Image-2.1 Q4_K_M GGUF** (7B diffusion transformer) headless with
-ComfyUI, generates a sample image, and prints a **public API URL**
-(Cloudflare quick tunnel — no account) you can call from any machine.
+ComfyUI + the **Viggle turbo LoRA** (6 steps, CFG off), generates a sample
+image, and prints a **public API URL** (Cloudflare quick tunnel — no account)
+you can call from any machine.
 
-- ⏱ **~12 minutes end to end** (install 1 min → downloads 4 min → boot 2 min
-  → first image 2.5 min → tunnel 15 s). Everything is measured; see the
+- ⏱ **~10 minutes end to end** (install 1 min → downloads 3–4 min → boot 2 min
+  → first image ~2 min → tunnel 15 s). Everything is measured; see the
   [repo](https://github.com/KodeIsFun/run-qwen-image-on-free-colab) for the
   numbers and the gotchas.
 - ⚠️ **Requires the T4 runtime**: menu *Runtime → Change runtime type → T4
   GPU → Save* (free tier), then *Runtime → Run all*. Cell 1 checks and warns.
-- 🖼 Settings are the measured speed combo for the free T4: **768×768,
-  12 steps, fp16** → ~6.2 s/step, ~80 s per warm image. Text rendering works
-  (try a prompt with words in it).
+- 🖼 Settings are the measured turbo combo for the free T4: **768×768,
+  6 steps, fp16, turbo LoRA, CFG off** → ~2.7 s/step, **~21 s per warm
+  image** (the 12-step no-LoRA combo is ~69 s on the same weights). Text
+  rendering works (try a prompt with words in it).
 - ⚖️ Model: **Qwen Research License** (experiments/research/demos; check
   before commercial use).
 """
@@ -50,7 +52,7 @@ print("OK: gpu -", out)
 '''
 
 CELL_INSTALL = '''\
-# Cell 2 — ComfyUI + the leejet ComfyUI-GGUF fork (idempotent)
+# Cell 2 — ComfyUI + the leejet ComfyUI-GGUF fork + Viggle's turbo node (idempotent)
 import os, time
 t0 = time.time()
 if not os.path.isdir("/content/ComfyUI"):
@@ -60,20 +62,34 @@ if not os.path.isdir("/content/ComfyUI/custom_nodes/ComfyUI-GGUF"):
     # the leejet fork, NOT city96 — city96 fails with "Unknown model architecture!"
     !git clone --depth 1 https://github.com/leejet/ComfyUI-GGUF /content/ComfyUI/custom_nodes/ComfyUI-GGUF
     !pip install -q -r /content/ComfyUI/custom_nodes/ComfyUI-GGUF/requirements.txt
+if not os.path.exists("/content/ComfyUI/custom_nodes/viggle_turbo.py"):
+    # Viggle's turbo custom node: applies the LoRA at runtime (never merge —
+    # merging is lossy) and builds the resolution-shifted few-step sigmas that
+    # stock ComfyUI samplers cannot express. Custom nodes load at server boot,
+    # so this cell must run BEFORE the launch cell.
+    !wget -q --tries=3 --timeout=60 https://huggingface.co/Viggle/Qwen-Image-2.1-viggle-turbo/resolve/main/comfyui/viggle_turbo.py -O /content/ComfyUI/custom_nodes/viggle_turbo.py
 print(f"OK: install ({time.time() - t0:.0f}s)")
 '''
 
 CELL_DOWNLOAD = '''\
 # Cell 3 — download the model files (idempotent, resumes partial downloads)
 import os, shutil, time
-REPO = "https://huggingface.co/abenzerps/Qwen-Image-2.1-GGUF/resolve/main"
+# The diffusion GGUF comes from unsloth: abenzerps' original repo was
+# restructured to Uncensored-only and the base file 404s (GitHub issue #1).
+# unsloth hosts the BASE model — the same distribution the turbo LoRA was
+# distilled from. Text encoder + VAE still resolve at the original repo.
+UNSLOTH = "https://huggingface.co/unsloth/Qwen-Image-2.1-GGUF/resolve/main"
+ABENZ = "https://huggingface.co/abenzerps/Qwen-Image-2.1-GGUF/resolve/main"
+VIGGLE = "https://huggingface.co/Viggle/Qwen-Image-2.1-viggle-turbo/resolve/main"
 FILES = [
-    (f"{REPO}/qwen-image-2.1-Q4_K_M.gguf",
+    (f"{UNSLOTH}/qwen-image-2.1-Q4_K_M.gguf",
      "/content/ComfyUI/models/diffusion_models/qwen-image-2.1-Q4_K_M.gguf"),
-    (f"{REPO}/text_encoders/qwen3vl_8b_int8_convrot.safetensors",
+    (f"{ABENZ}/text_encoders/qwen3vl_8b_int8_convrot.safetensors",
      "/content/ComfyUI/models/text_encoders/qwen3vl_8b_int8_convrot.safetensors"),
-    (f"{REPO}/vae/qwen_image_2.1_vae_bf16.safetensors",
+    (f"{ABENZ}/vae/qwen_image_2.1_vae_bf16.safetensors",
      "/content/ComfyUI/models/vae/qwen_image_2.1_vae_bf16.safetensors"),
+    (f"{VIGGLE}/Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r128.safetensors",
+     "/content/ComfyUI/models/loras/Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r128.safetensors"),
 ]
 t0 = time.time()
 for url, dest in FILES:
@@ -82,13 +98,15 @@ for url, dest in FILES:
         continue
     print("downloading:", os.path.basename(dest))
     !wget -q -c --tries=3 --timeout=60 {url} -O {dest}
-    assert os.path.getsize(dest) > 1e8, f"download failed: {dest}"
+    assert os.path.getsize(dest) > 1e8, (
+        f"download failed: {dest} — delete the partial file and re-run this "
+        f"cell (repo troubleshooting §13)")
 # loader-compat copies: some node versions scan models/unet and models/clip
 os.makedirs("/content/ComfyUI/models/unet", exist_ok=True)
 shutil.copy(FILES[0][1], "/content/ComfyUI/models/unet/")
 os.makedirs("/content/ComfyUI/models/clip", exist_ok=True)
 shutil.copy(FILES[1][1], "/content/ComfyUI/models/clip/")
-print(f"OK: download ({time.time() - t0:.0f}s total, 14.6 GB fresh)")
+print(f"OK: download ({time.time() - t0:.0f}s total, ~15.6 GB fresh)")
 '''
 
 CELL_LAUNCH = '''\
@@ -139,11 +157,15 @@ def api(path, payload=None, timeout=60):
 
 oi = api("/object_info")
 assert "UnetLoaderGGUF" in oi, "GGUF loader missing - is ComfyUI-GGUF (leejet) installed?"
+assert "ViggleTurboLora" in oi and "ViggleTurboSigmas" in oi, (
+    "viggle_turbo custom node missing - re-run cell 2, then Restart runtime "
+    "(custom nodes load at server boot)")
 clip_types = oi["CLIPLoader"]["input"].get("required", {}).get("type") or \
              oi["CLIPLoader"]["input"].get("optional", {}).get("type")
 assert "qwen_image" in clip_types[0], "CLIPLoader lacks the qwen_image type - update ComfyUI"
 
-# The measured combo: 768x768, 12 steps, cfg 2.5, res_multistep/simple, seed 42
+# The measured turbo combo: 768x768, 6 steps, cfg fully OFF (BasicGuider runs
+# no negative pass), ViggleTurboSigmas schedule, runtime-hook LoRA. ~21 s warm.
 wf = {
     "1": {"class_type": "UnetLoaderGGUF",
           "inputs": {"unet_name": "qwen-image-2.1-Q4_K_M.gguf"}},
@@ -154,18 +176,25 @@ wf = {
     "4": {"class_type": "CLIPTextEncode",
           "inputs": {"clip": ["2", 0],
                      "text": 'a neon shop sign that reads "FREE GPU LAB", rainy night, reflections on wet pavement'}},
-    "5": {"class_type": "CLIPTextEncode",
-          "inputs": {"clip": ["2", 0], "text": ""}},
+    "5": {"class_type": "ViggleTurboLora",
+          "inputs": {"model": ["1", 0],
+                     "lora_name": "Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r128.safetensors",
+                     "strength": 1.0}},
     "6": {"class_type": "EmptySD3LatentImage",
           "inputs": {"width": 768, "height": 768, "batch_size": 1}},
-    "7": {"class_type": "KSampler",
-          "inputs": {"model": ["1", 0], "positive": ["4", 0], "negative": ["5", 0],
-                     "latent_image": ["6", 0], "seed": 42, "steps": 12, "cfg": 2.5,
-                     "sampler_name": "res_multistep", "scheduler": "simple",
-                     "denoise": 1.0}},
-    "8": {"class_type": "VAEDecode", "inputs": {"samples": ["7", 0], "vae": ["3", 0]}},
-    "9": {"class_type": "SaveImage",
-          "inputs": {"images": ["8", 0], "filename_prefix": "qwen_t4_sample"}},
+    "7": {"class_type": "RandomNoise", "inputs": {"noise_seed": 42}},
+    "8": {"class_type": "KSamplerSelect", "inputs": {"sampler_name": "euler"}},
+    "9": {"class_type": "ViggleTurboSigmas",
+          "inputs": {"latent": ["6", 0], "nodes": "1.0, 0.9375, 0.875, 0.75, 0.5, 0.25"}},
+    "10": {"class_type": "BasicGuider",
+           "inputs": {"model": ["5", 0], "conditioning": ["4", 0]}},
+    "11": {"class_type": "SamplerCustomAdvanced",
+           "inputs": {"noise": ["7", 0], "guider": ["10", 0], "sampler": ["8", 0],
+                      "sigmas": ["9", 0], "latent_image": ["6", 0]}},
+    "12": {"class_type": "VAEDecode",
+           "inputs": {"samples": ["11", 0], "vae": ["3", 0]}},
+    "13": {"class_type": "SaveImage",
+           "inputs": {"images": ["12", 0], "filename_prefix": "qwen_t4_sample"}},
 }
 pid = api("/prompt", {"prompt": wf, "client_id": "notebook"})["prompt_id"]
 t0 = time.time()
@@ -189,8 +218,8 @@ q = urllib.parse.urlencode({"filename": imgs[0]["filename"],
 data = urllib.request.urlopen(f"{BASE}/view?{q}", timeout=120).read()
 open("/content/qwen-sample.png", "wb").write(data)
 display(IPyImage("/content/qwen-sample.png"))
-print(f'OK: generate ({time.time() - t0:.0f}s incl. first-time model loads) '
-      f'-> /content/qwen-sample.png')
+print(f'OK: generate ({time.time() - t0:.0f}s incl. first-time model loads; '
+      f'warm images run ~21 s) -> /content/qwen-sample.png')
 '''
 
 CELL_TUNNEL = '''\
@@ -225,6 +254,9 @@ Your text-to-image API is live from anywhere (while this notebook runs):
   python3 txt2img.py --url {url} \\\\
       --prompt 'a red fox in snow, film photo' --out fox.png
 
+Defaults to the turbo graph (6 steps, CFG off, ~21 s warm). For the slower
+no-LoRA baseline: add --no-turbo (12 steps, cfg 2.5, ~69 s warm).
+
 (txt2img.py ships in the repo under clients/ - it needs only Python 3,
 no installs. The URL changes every notebook re-run.)
 
@@ -239,10 +271,11 @@ MD_TAIL = """\
 
 | Change | Effect |
 |---|---|
-| `steps: 12` → 16, 20 | better fine detail, linearly slower (20 steps fp32 = 12.8 min/image — don't) |
+| turbo (default) → `--no-turbo` | 6-step LoRA graph → 12-step no-LoRA baseline: ~21 s → ~69 s warm; keep the baseline if the custom node ever breaks on a newer ComfyUI |
+| turbo, small dense text | 8 steps instead of 6: sigmas `1.0, 0.96875, 0.9375, 0.90625, 0.875, 0.75, 0.5, 0.25` (add high-noise steps only), ~30 s |
 | `width/height: 768` → 1024 | ~1.8× slower per step; quality up |
-| `cfg: 2.5` → 1.0 | halves compute (skips the negative pass) — untested on 2.1, eyeball quality |
-| sampler / scheduler | keep `res_multistep` / `simple`; speed barely moves (compute-bound) |
+| `steps: 12` → 16, 20 (baseline) | better fine detail, linearly slower (20 steps fp32 = 12.8 min/image — don't) |
+| sampler / scheduler | turbo: euler + ViggleTurboSigmas (the schedule is the recipe). baseline: `res_multistep`/`simple`; speed barely moves (compute-bound) |
 | smaller quant (Q5/Q4_0) | **no speed change** — the step is compute-bound; quants decide what fits in VRAM |
 
 Gotchas that will bite if forgotten (full list in the repo's
@@ -251,6 +284,11 @@ Gotchas that will bite if forgotten (full list in the repo's
 - The T4 needs BOTH `--force-fp16` and `--disable-comfy-compiler` (cell 4 has
   them). Without fp16: ~6× slower. Without the compiler flag: crash.
 - The GGUF needs the **leejet** fork of ComfyUI-GGUF (cell 2 uses it).
+- The turbo LoRA is applied at runtime by the author's custom node and must
+  **never be merged** into the weights (merging is lossy); CFG stays fully
+  off — that is part of the recipe, not a shortcut.
+- The diffusion GGUF comes from **unsloth** (abenzerps' original 404s —
+  GitHub issue #1); the turbo LoRA was distilled on that base distribution.
 - The tunnel URL is new on every run; the VM sleeps when idle.
 
 When finished: *Runtime → Manage sessions → TERMINATE* — free GPU minutes are

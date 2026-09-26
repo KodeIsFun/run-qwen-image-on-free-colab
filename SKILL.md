@@ -5,8 +5,8 @@ description: Run Qwen-Image-2.1 (7B diffusion transformer, GGUF quantized) text-
   tunnel consumable from anywhere. Use when the user wants free-GPU image generation,
   a local text-to-image API without paying for GPU, or to tune/serve Qwen-Image GGUF
   models. Includes Colab CLI install/auth, a verified notebook, a stdlib-only client,
-  the measured speed settings (fp16 + 12 steps + 768 = 6.20 s/step), and every gotcha
-  paid for in real failed runs.
+  the measured turbo recipe (Viggle distilled LoRA, 6 steps, CFG off, ~21 s per warm
+  image), the 12-step no-LoRA baseline, and every gotcha paid for in real failed runs.
 ---
 
 # Run Qwen-Image-2.1 on a free Colab T4
@@ -31,12 +31,19 @@ Ask (or infer): **what does the user actually want?**
 | Something broke | Troubleshooting | [references/05-troubleshooting.md](references/05-troubleshooting.md) |
 | What the human must do by hand | Manual steps | [references/01-manual-steps.md](references/01-manual-steps.md) |
 
-**Default config (verified):** Qwen-Image-2.1 **Q4_K_M** GGUF (4.60 GB) +
+**Default config (verified, turbo):** Qwen-Image-2.1 **Q4_K_M** GGUF (base
+model from **unsloth**, 4.20 GB — abenzerps' original file 404s, issue #1) +
 int8 text encoder + bf16 VAE via ComfyUI + the **leejet** fork of
-ComfyUI-GGUF, launched with `--force-fp16 --disable-comfy-compiler`,
-**768×768, 12 steps, cfg 2.5, res_multistep/simple** → **6.20 s/step,
-79.2 s per warm image** (9.7× over the naive fp32 defaults), text rendering
-intact ("FREE GPU LAB" neon sign, spelled correctly).
+ComfyUI-GGUF + Viggle's **turbo LoRA** via the author's `viggle_turbo.py`
+custom node, launched with `--force-fp16 --disable-comfy-compiler`,
+**768×768, 6 steps, CFG fully off** (BasicGuider), euler + the
+ViggleTurboSigmas schedule → **~2.7 s/step, 21.0 s per warm image**, text
+rendering intact ("FREE GPU LAB" neon sign, spelled correctly).
+
+**Baseline config (verified, no LoRA):** same weights and flags, KSampler
+**12 steps, cfg 2.5, res_multistep/simple** → **5.29 s/step, 69.1 s warm**.
+Use it as the fallback if the turbo custom node ever breaks on a newer
+ComfyUI, and as the apples-to-apples anchor for speed ratios.
 
 ## Invariants — never violate these
 
@@ -73,9 +80,23 @@ intact ("FREE GPU LAB" neon sign, spelled correctly).
    for experimentation and research use; flag it if the user's use looks
    commercial.
 9. **Every number you quote traces to the measured table** in
-   references/04-tweaking.md. Configurations not yet measured (cfg 1.0,
-   Lightning LoRAs, Q8_0 speed) are labeled untested there — do not present
-   them as results.
+   references/04-tweaking.md. Configurations not yet measured (cfg 1.0
+   without the LoRA, Q8_0 speed, 1024²-fp16) are labeled untested there — do
+   not present them as results.
+10. **The turbo LoRA is never merged and CFG is never turned back on.** The
+    recipe needs the author's `viggle_turbo.py` node: the LoRA applied by
+    runtime hooks (merging drops most of its update — lossy on every weight
+    format) and the resolution-shifted sigma schedule that stock KSampler
+    cannot express. "Just set steps=6 on the old graph" produces mush — that
+    is the measured naive few-step failure, see tweaking.
+11. **The diffusion GGUF comes from unsloth** (`unsloth/Qwen-Image-2.1-GGUF`,
+    base model). abenzerps' repo was restructured to Uncensored-only and the
+    non-UC file 404s — that is user-facing issue #1 in this repo. TE + VAE
+    still resolve at abenzerps' paths. Always assert downloaded file sizes.
+12. **Speed ratios come from in-session anchors only.** The unsloth and
+    abenzerps Q4_K_M files are different quant runs (4.20 vs 4.60 GB) with
+    measurably different speed; never divide a turbo timing by a timing from
+    another session or another weight file.
 
 ## The 60-second version (agent driving the CLI lane)
 
