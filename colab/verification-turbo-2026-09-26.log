@@ -1,0 +1,41 @@
+# Fresh-T4 verification transcript — turbo update, 2026-09-26
+# Command: colab exec -s qwenimg-turbo -f colab/run-qwen-image-t4.ipynb --timeout 1500
+# VM: gpu-t4-s-kkb-ass1c0-1lk651xisgzc1 (free tier). Progress-bar spam stripped;
+# the tunnel URL below is ephemeral and dead by the time you read this.
+
+[colab] A new version of Colab CLI is available: 0.7.4 (current: 0.6.0)
+[colab] Run 'colab update' to update.
+[colab] Parsing notebook 'colab/run-qwen-image-t4.ipynb'...
+[colab] Executing cell 1/7 - 4e5b9b73-8ba9-4108-aefe-589d49f4a91f...
+OK: gpu - Tesla T4, 15360 MiB
+[colab] Executing cell 2/7 - 0522b53a-8df3-4886-b7eb-1f2ffac181c8...
+Cloning into '/content/ComfyUI'...
+Cloning into '/content/ComfyUI/custom_nodes/ComfyUI-GGUF'...
+OK: install (42s)
+[colab] Executing cell 3/7 - 65830768-7e93-4d31-85a7-c66e70f03d1e...
+downloading: qwen-image-2.1-Q4_K_M.gguf
+downloading: qwen3vl_8b_int8_convrot.safetensors
+downloading: qwen_image_2.1_vae_bf16.safetensors
+downloading: Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r128.safetensors
+OK: download (310s total, ~15.6 GB fresh)
+[colab] Executing cell 4/7 - 25b7923b-b208-4b60-9e75-7920bcc947fb...
+OK: launch (27s)
+[colab] Executing cell 5/7 - fa4c9b22-5761-4cfd-b8ea-a2adf6b19c1c...
+<IPython.core.display.Image object>
+[Image saved to: /var/folders/7b/z3r7m7d53mx9kjh8ng3tqpw00000gn/T/tmpeo1nydo9.png]
+OK: generate (72s incl. first-time model loads; warm images run ~21 s) -> /content/qwen-sample.png
+[colab] Executing cell 6/7 - 0c1e1a63-16dd-4683-8ecc-cf297ac2993a...
+API URL: https://works-baseball-salt-gospel.trycloudflare.com
+OK: tunnel
+[colab] Executing cell 7/7 - a8881c6d-6f05-46c2-9585-f196fd34b2b4...
+Your text-to-image API is live from anywhere (while this notebook runs):
+  python3 txt2img.py --url https://works-baseball-salt-gospel.trycloudflare.com \
+      --prompt 'a red fox in snow, film photo' --out fox.png
+Defaults to the turbo graph (6 steps, CFG off, ~21 s warm). For the slower
+no-LoRA baseline: add --no-turbo (12 steps, cfg 2.5, ~69 s warm).
+(txt2img.py ships in the repo under clients/ - it needs only Python 3,
+no installs. The URL changes every notebook re-run.)
+Raw HTTP works too:
+  curl https://works-baseball-salt-gospel.trycloudflare.com/system_stats
+OK: api
+[colab] Saving notebook with outputs to 'colab/run-qwen-image-t4_output.ipynb'...

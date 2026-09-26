@@ -97,6 +97,19 @@ def api(url, path, payload=None, timeout=60):
         return json.loads(r.read())
 
 
+def api_retry(url, path, payload=None, timeout=60, tries=4):
+    """api() with retries — quick tunnels occasionally reset a connection;
+    one flaky reset must not kill a client that is willing to wait 25 min."""
+    last = None
+    for attempt in range(tries):
+        try:
+            return api(url, path, payload, timeout)
+        except Exception as e:  # noqa: BLE001 — anything transient counts
+            last = e
+            time.sleep(min(2 ** attempt, 8))
+    raise last
+
+
 def main():
     p = argparse.ArgumentParser(description="txt2img on a remote ComfyUI")
     p.add_argument("--url", required=True, help="e.g. https://x-y.trycloudflare.com")
@@ -121,21 +134,24 @@ def main():
 
     url = a.url
     try:
-        api(url, "/system_stats", timeout=15)
+        api_retry(url, "/system_stats", timeout=15)
         print(f"server alive: {url}")
     except Exception as e:
         sys.exit(f"server not reachable at {url} — is the notebook running? ({e})")
 
     wf = build_workflow(a.prompt, steps, cfg, a.width, a.height, a.seed, turbo)
-    pid = api(url, "/prompt", {"prompt": wf, "client_id": "txt2img.py"},
-              timeout=TIMEOUT_SUBMIT)["prompt_id"]
+    pid = api_retry(url, "/prompt", {"prompt": wf, "client_id": "txt2img.py"},
+                    timeout=TIMEOUT_SUBMIT)["prompt_id"]
     mode = "turbo (6 steps, cfg off)" if turbo else f"baseline ({steps} steps, cfg {cfg})"
     print(f"queued {a.width}x{a.height}, {mode}, seed {a.seed} — polling...")
 
     t0 = time.time()
     while time.time() - t0 < TIMEOUT_IMAGE:
         time.sleep(3)
-        hist = api(url, f"/history/{pid}", timeout=20)
+        try:
+            hist = api_retry(url, f"/history/{pid}", timeout=20)
+        except Exception:
+            continue  # transient tunnel reset — the loop timeout bounds this
         if pid not in hist:
             continue
         entry = hist[pid]
@@ -148,9 +164,19 @@ def main():
             q = urllib.parse.urlencode({"filename": im["filename"],
                                         "subfolder": im.get("subfolder", ""),
                                         "type": im.get("type", "output")})
-            with urllib.request.urlopen(f"{url.rstrip('/')}/view?{q}",
-                                        timeout=120) as r, open(a.out, "wb") as f:
-                f.write(r.read())
+            data = None
+            for attempt in range(4):
+                try:
+                    with urllib.request.urlopen(
+                            f"{url.rstrip('/')}/view?{q}", timeout=120) as r:
+                        data = r.read()
+                    break
+                except Exception:
+                    if attempt == 3:
+                        raise
+                    time.sleep(min(2 ** attempt, 8))
+            with open(a.out, "wb") as f:
+                f.write(data)
             print(f"done in {time.time() - t0:.0f}s -> {a.out}")
             return
     sys.exit("timed out waiting for the image (~25 min) — see troubleshooting §9")

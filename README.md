@@ -66,9 +66,12 @@ quantization + fp16 at both 6 turbo steps and 12 baseline steps** — but only
 the turbo row is a distilled LoRA; naive 4-step (no LoRA) collapses the same
 sign into illegible glow.
 
-Proof artifacts from the verification run ship in
+Proof artifacts from the verification runs ship in
 [colab/run-qwen-image-t4_output.ipynb](colab/run-qwen-image-t4_output.ipynb)
-and [colab/proof-served-through-tunnel.png](colab/proof-served-through-tunnel.png)
+(executed notebook, re-run 2026-09-26 on the turbo update),
+[colab/verification-turbo-2026-09-26.log](colab/verification-turbo-2026-09-26.log)
+(fresh-T4 transcript: all 7 cells OK), and
+[colab/proof-served-through-tunnel.png](colab/proof-served-through-tunnel.png)
 (generated on the VM, fetched through the public tunnel from a different
 machine).
 
@@ -95,6 +98,7 @@ path: [references/01-manual-steps.md](references/01-manual-steps.md).
 SKILL.md                     ← agents start here (routing + 12 invariants)
 colab/run-qwen-image-t4.ipynb        ← the notebook (built, verified on a fresh T4)
 colab/run-qwen-image-t4_output.ipynb ← the executed notebook from the verification run
+colab/verification-turbo-2026-09-26.log ← fresh-T4 transcript of the turbo verification
 colab/proof-served-through-tunnel.png ← image fetched through the public tunnel
 samples/                     ← raw outputs: turbo 6-step + no-LoRA baseline, same prompts/seed
 clients/txt2img.py           ← stdlib-only client (turbo default, --no-turbo baseline)

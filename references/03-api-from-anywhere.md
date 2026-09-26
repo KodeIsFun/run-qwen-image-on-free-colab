@@ -72,6 +72,13 @@ Node IDs are strings; links are `["<node>", <output_index>]`.
 - **One generation at a time** is the sane default on the T4; ComfyUI queues
   additional `/prompt` submissions rather than rejecting them, so a client
   can fire-and-poll multiple prompts safely (they just run serially).
+- **Identical re-submits are cache hits.** Re-POST the exact same workflow
+  (same prompt/seed/size) and ComfyUI returns the cached image in seconds —
+  use a new seed when you are trying to prove serving, not caching.
+- **The bundled client retries transient resets.** Quick tunnels
+  occasionally kill a connection mid-poll (`Connection reset by peer`);
+  `txt2img.py` retries submits, polls, and the final fetch, so one flappy
+  reset does not kill a queued generation.
 - **Timeouts**: a turbo image takes ~20–30 s warm at 768² (plus first-image
   model load, ~1.5 min); the no-LoRA baseline ~70–130 s. Poll `/history`
   every ~3 s; give up after ~25 min (that is a stuck queue, not slowness —
