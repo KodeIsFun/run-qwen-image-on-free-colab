@@ -5,7 +5,7 @@ description: Run Qwen-Image-2.1 (7B diffusion transformer, GGUF quantized) text-
   tunnel consumable from anywhere. Use when the user wants free-GPU image generation,
   a local text-to-image API without paying for GPU, or to tune/serve Qwen-Image GGUF
   models. Includes Colab CLI install/auth, a verified notebook, a stdlib-only client,
-  the measured turbo recipe (Viggle distilled LoRA, 6 steps, CFG off, ~21 s per warm
+  the measured turbo recipe (Viggle distilled LoRA, 6 steps, CFG off, ~24 s per warm (r256 LoRA)
   image), the 12-step no-LoRA baseline, and every gotcha paid for in real failed runs.
 ---
 
@@ -34,11 +34,13 @@ Ask (or infer): **what does the user actually want?**
 **Default config (verified, turbo):** Qwen-Image-2.1 **Q4_K_M** GGUF (base
 model from **unsloth**, 4.20 GB — abenzerps' original file 404s, issue #1) +
 int8 text encoder + bf16 VAE via ComfyUI + the **leejet** fork of
-ComfyUI-GGUF + Viggle's **turbo LoRA** via the author's `viggle_turbo.py`
-custom node, launched with `--force-fp16 --disable-comfy-compiler`,
-**768×768, 6 steps, CFG fully off** (BasicGuider), euler + the
-ViggleTurboSigmas schedule → **~2.7 s/step, 21.0 s per warm image**, text
-rendering intact ("FREE GPU LAB" neon sign, spelled correctly).
+ComfyUI-GGUF + Viggle's **turbo LoRA v0.2.1, r256 file** via the author's
+`viggle_turbo.py` custom node, launched with `--force-fp16
+--disable-comfy-compiler`, **768×768, 6 steps, CFG fully off** (BasicGuider),
+euler + the ViggleTurboSigmas schedule → **~2.8 s/step, 24.0 s per warm
+image** — measured on a Colab T4 and re-verified to the second on a Kaggle T4
+(2026-09-27); text rendering intact ("FREE GPU LAB" neon sign, spelled
+correctly).
 
 **Baseline config (verified, no LoRA):** same weights and flags, KSampler
 **12 steps, cfg 2.5, res_multistep/simple** → **5.29 s/step, 69.1 s warm**.

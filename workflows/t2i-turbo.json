@@ -1,5 +1,5 @@
 {
- "_comment": "The exact verified TURBO text-to-image graph for Qwen-Image-2.1 Q4_K_M GGUF on a free T4 (Viggle turbo LoRA v0.2.1, r128). POST to /prompt wrapped as {\"prompt\": <this object>, \"client_id\": \"x\"}. Settings = the measured turbo combo: 768x768, 6 steps, CFG fully OFF (BasicGuider runs no negative pass), euler, runtime-hook LoRA at strength 1.0, seed 42 -> ~21 s warm. The LoRA must never be merged into the weights and the sigma schedule must stay ViggleTurboSigmas (stock samplers cannot express it). Requires the server-side viggle_turbo.py custom node (the notebook installs it) and the LoRA file in models/loras/. Baseline (no-LoRA) graph: workflows/t2i-api.json. Numbers trace to timings_v4_turbo.json in the GPUTests lab repo. See references/04-tweaking.md before changing values.",
+ "_comment": "The exact verified TURBO text-to-image graph for Qwen-Image-2.1 Q4_K_M GGUF on a free T4 (Viggle turbo LoRA v0.2.1, r256 — upstream's recommended file; its r128 SVD truncation measured identical). POST to /prompt wrapped as {\"prompt\": <this object>, \"client_id\": \"x\"}. Settings = the measured turbo combo: 768x768, 6 steps, CFG fully OFF (BasicGuider runs no negative pass), euler, runtime-hook LoRA at strength 1.0, seed 42 -> ~24 s warm, cross-surface verified on Colab and Kaggle T4s. The LoRA must never be merged into the weights and the sigma schedule must stay ViggleTurboSigmas (stock samplers cannot express it). Requires the server-side viggle_turbo.py custom node (the notebook installs it) and the LoRA file in models/loras/. Baseline (no-LoRA) graph: workflows/t2i-api.json. Numbers trace to timings_v5_r256.json (v4-era r128: timings_v4_turbo.json) in the GPUTests lab repo. See references/04-tweaking.md before changing values.",
  "1": {
   "class_type": "UnetLoaderGGUF",
   "inputs": {
@@ -30,7 +30,7 @@
   "class_type": "ViggleTurboLora",
   "inputs": {
    "model": ["1", 0],
-   "lora_name": "Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r128.safetensors",
+   "lora_name": "Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors",
    "strength": 1.0
   }
  },

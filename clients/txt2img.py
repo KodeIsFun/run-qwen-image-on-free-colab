@@ -5,7 +5,7 @@ tunnel) using only the Python standard library. No pip installs, any OS.
 Tested end-to-end from outside Colab through a trycloudflare tunnel.
 
 Defaults to the measured turbo graph (Viggle LoRA applied server-side, 6
-steps, CFG off, ~21 s warm at 768²). --no-turbo switches to the 12-step
+steps, CFG off, ~24 s warm at 768²). --no-turbo switches to the 12-step
 no-LoRA baseline (~69 s warm) — useful if the server lacks the turbo custom
 node, or for an apples-to-apples quality comparison.
 
@@ -25,7 +25,7 @@ import urllib.request
 GGUF_FILE = "qwen-image-2.1-Q4_K_M.gguf"
 TE_FILE = "qwen3vl_8b_int8_convrot.safetensors"
 VAE_FILE = "qwen_image_2.1_vae_bf16.safetensors"
-LORA_FILE = "Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r128.safetensors"
+LORA_FILE = "Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors"
 SIGMAS_6 = "1.0, 0.9375, 0.875, 0.75, 0.5, 0.25"
 TIMEOUT_SUBMIT = 60
 TIMEOUT_IMAGE = 1800  # generous: includes queue + cold model load (~5 min)

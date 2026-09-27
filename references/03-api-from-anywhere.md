@@ -28,7 +28,7 @@ python3 clients/txt2img.py \
 ```
 
 Options: `--no-turbo --steps 12 --cfg 2.5 --width 768 --height 768 --seed 42
---negative ""`. **Default is the turbo graph** (6 steps, CFG off, ~21 s warm;
+--negative ""`. **Default is the turbo graph** (6 steps, CFG off, ~24 s warm;
 `--steps`/`--cfg` are ignored there — the schedule and CFG-off are part of
 the recipe). `--no-turbo` runs the 12-step no-LoRA baseline with the options
 above (defaults = the measured baseline combo). Requires only Python 3 —
@@ -54,7 +54,7 @@ curl -s "$URL/view?filename=<name>&subfolder=&type=output" -o out.png
 
 - `workflows/t2i-turbo.json` — the verified **turbo** graph (default):
   ViggleTurboLora runtime-hook LoRA, CFG off via BasicGuider, euler +
-  ViggleTurboSigmas, SamplerCustomAdvanced. ~21 s warm at 768².
+  ViggleTurboSigmas, SamplerCustomAdvanced. ~24 s warm at 768².
 - `workflows/t2i-api.json` — the verified no-LoRA **baseline** graph:
   Q4_K_M GGUF loader, `qwen_image` CLIP loader, VAE, 768² latent, KSampler
   res_multistep/simple, VAE decode, SaveImage. ~69 s warm on the same

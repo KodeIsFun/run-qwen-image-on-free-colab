@@ -28,7 +28,7 @@ Total human effort: ~2 minutes of clicking, then ~10 minutes of waiting.
    Google" warning. Cells print `OK: ...` as they finish.
 5. **Wait ~10 minutes.** Install ≈ 1 min, downloads ≈ 3–4 min (15.6 GB),
    model boot ≈ 2 min, first image ≈ 2 min (model loads; warm images after
-   it run ~21 s), tunnel ≈ 15 s. The notebook shows progress.
+   it run ~24 s), tunnel ≈ 15 s. The notebook shows progress.
 6. **Copy the line that looks like**
 
    ```

@@ -27,7 +27,7 @@ you can call from any machine.
 - ⚠️ **Requires the T4 runtime**: menu *Runtime → Change runtime type → T4
   GPU → Save* (free tier), then *Runtime → Run all*. Cell 1 checks and warns.
 - 🖼 Settings are the measured turbo combo for the free T4: **768×768,
-  6 steps, fp16, turbo LoRA, CFG off** → ~2.7 s/step, **~21 s per warm
+  6 steps, fp16, turbo LoRA, CFG off** → ~2.8 s/step, **~24 s per warm
   image** (the 12-step no-LoRA combo is ~69 s on the same weights). Text
   rendering works (try a prompt with words in it).
 - ⚖️ Model: **Qwen Research License** (experiments/research/demos; check
@@ -88,8 +88,8 @@ FILES = [
      "/content/ComfyUI/models/text_encoders/qwen3vl_8b_int8_convrot.safetensors"),
     (f"{ABENZ}/vae/qwen_image_2.1_vae_bf16.safetensors",
      "/content/ComfyUI/models/vae/qwen_image_2.1_vae_bf16.safetensors"),
-    (f"{VIGGLE}/Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r128.safetensors",
-     "/content/ComfyUI/models/loras/Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r128.safetensors"),
+    (f"{VIGGLE}/Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors",
+     "/content/ComfyUI/models/loras/Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors"),
 ]
 t0 = time.time()
 for url, dest in FILES:
@@ -165,7 +165,7 @@ clip_types = oi["CLIPLoader"]["input"].get("required", {}).get("type") or \
 assert "qwen_image" in clip_types[0], "CLIPLoader lacks the qwen_image type - update ComfyUI"
 
 # The measured turbo combo: 768x768, 6 steps, cfg fully OFF (BasicGuider runs
-# no negative pass), ViggleTurboSigmas schedule, runtime-hook LoRA. ~21 s warm.
+# no negative pass), ViggleTurboSigmas schedule, runtime-hook LoRA. ~24 s warm.
 wf = {
     "1": {"class_type": "UnetLoaderGGUF",
           "inputs": {"unet_name": "qwen-image-2.1-Q4_K_M.gguf"}},
@@ -178,7 +178,7 @@ wf = {
                      "text": 'a neon shop sign that reads "FREE GPU LAB", rainy night, reflections on wet pavement'}},
     "5": {"class_type": "ViggleTurboLora",
           "inputs": {"model": ["1", 0],
-                     "lora_name": "Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r128.safetensors",
+                     "lora_name": "Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors",
                      "strength": 1.0}},
     "6": {"class_type": "EmptySD3LatentImage",
           "inputs": {"width": 768, "height": 768, "batch_size": 1}},
@@ -219,7 +219,7 @@ data = urllib.request.urlopen(f"{BASE}/view?{q}", timeout=120).read()
 open("/content/qwen-sample.png", "wb").write(data)
 display(IPyImage("/content/qwen-sample.png"))
 print(f'OK: generate ({time.time() - t0:.0f}s incl. first-time model loads; '
-      f'warm images run ~21 s) -> /content/qwen-sample.png')
+      f'warm images run ~24 s) -> /content/qwen-sample.png')
 '''
 
 CELL_TUNNEL = '''\
@@ -254,7 +254,7 @@ Your text-to-image API is live from anywhere (while this notebook runs):
   python3 txt2img.py --url {url} \\\\
       --prompt 'a red fox in snow, film photo' --out fox.png
 
-Defaults to the turbo graph (6 steps, CFG off, ~21 s warm). For the slower
+Defaults to the turbo graph (6 steps, CFG off, ~24 s warm). For the slower
 no-LoRA baseline: add --no-turbo (12 steps, cfg 2.5, ~69 s warm).
 
 (txt2img.py ships in the repo under clients/ - it needs only Python 3,
@@ -271,8 +271,8 @@ MD_TAIL = """\
 
 | Change | Effect |
 |---|---|
-| turbo (default) → `--no-turbo` | 6-step LoRA graph → 12-step no-LoRA baseline: ~21 s → ~69 s warm; keep the baseline if the custom node ever breaks on a newer ComfyUI |
-| turbo, small dense text | 8 steps instead of 6: sigmas `1.0, 0.96875, 0.9375, 0.90625, 0.875, 0.75, 0.5, 0.25` (add high-noise steps only), ~30 s |
+| turbo (default) → `--no-turbo` | 6-step LoRA graph → 12-step no-LoRA baseline: ~24 s → ~69 s warm; keep the baseline if the custom node ever breaks on a newer ComfyUI |
+| turbo, small dense text | 8 steps instead of 6: the v0.2.1 card's official small-text schedule `1.0, 0.9375, 0.875, 0.75, 0.625, 0.5, 0.25, 0.125`, ~27 s, text canary intact |
 | `width/height: 768` → 1024 | ~1.8× slower per step; quality up |
 | `steps: 12` → 16, 20 (baseline) | better fine detail, linearly slower (20 steps fp32 = 12.8 min/image — don't) |
 | sampler / scheduler | turbo: euler + ViggleTurboSigmas (the schedule is the recipe). baseline: `res_multistep`/`simple`; speed barely moves (compute-bound) |

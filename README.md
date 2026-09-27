@@ -28,12 +28,12 @@ to a couple of clicks. If you are an agent: read
 |---|---|---|
 | 1024², 20 steps, fp32 (ComfyUI's default cast on T4) | 38.0 | 765.6 s |
 | 768², 12 steps, fp16 (no-LoRA baseline) | 6.20 | 79.2 s † |
-| **768², 6 steps, fp16 + Viggle turbo LoRA, CFG off** (this repo's settings) | **2.68** | **21.0 s** |
+| **768², 6 steps, fp16 + Viggle turbo LoRA r256, CFG off** (this repo's settings) | **2.73** | **24.0 s** ‡ |
 
 † measured on the original abenzerps weights (now 404 — see below). On the
 current unsloth weights the same no-LoRA baseline runs 69.1 s, so the honest
 same-weights speedup of the turbo row is **3.3×**, and the whole table spans
-**over 36×**. None of the levers is what people guess:
+**over 32×**. None of the levers is what people guess:
 
 - The T4 has no bf16, so ComfyUI silently runs the model in **fp32** unless
   you force fp16 — but fp16 then crashes ComfyUI's model compiler on this
@@ -47,11 +47,17 @@ same-weights speedup of the turbo row is **3.3×**, and the whole table spans
   weights), the author's resolution-shifted sigma schedule, and CFG fully
   off — six forward passes per image instead of twenty-four.
 
+‡ 2026-09-27: default LoRA upgraded to the **r256** file (upstream v0.2.1's
+recommendation; r128 was its SVD truncation). Warm image measured **24.0 s on
+a Colab T4 and 24.0 s on a Kaggle T4** — identical to the second across
+surfaces, same canary pass. The 2026-09-26 r128 build ran 21.0 s; full tables
+in [references/04-tweaking.md](references/04-tweaking.md).
+
 ## The images these settings produce
 
 All generated on a free Colab T4 with exactly this repo's settings and seed
 42 (raw outputs from the measured runs, untouched). Top row: the turbo
-default — 768×768, 6 steps, CFG off, ~21 s warm. Bottom row: the no-LoRA
+default — 768×768, 6 steps, CFG off. Bottom row: the no-LoRA
 baseline — same prompt, same seed, 12 steps:
 
 | Photoreal | Text rendering |
@@ -64,16 +70,18 @@ baseline — same prompt, same seed, 12 steps:
 That text-rendering column is the point: **"FREE GPU LAB" survives
 quantization + fp16 at both 6 turbo steps and 12 baseline steps** — but only
 the turbo row is a distilled LoRA; naive 4-step (no LoRA) collapses the same
-sign into illegible glow.
+sign into illegible glow. The current r256 default produces the same look —
+fresh render from the 2026-09-27 verification run:
+![the same FREE GPU LAB neon sign, r256 LoRA default, 2026-09-27](samples/turbo-r256_p2_freegpulab_sign.png)
 
 Proof artifacts from the verification runs ship in
 [colab/run-qwen-image-t4_output.ipynb](colab/run-qwen-image-t4_output.ipynb)
-(executed notebook, re-run 2026-09-26 on the turbo update),
-[colab/verification-turbo-2026-09-26.log](colab/verification-turbo-2026-09-26.log)
-(fresh-T4 transcript: all 7 cells OK), and
+(executed notebook, re-run 2026-09-27 for the r256 default),
+[colab/verification-r256-2026-09-27.log](colab/verification-r256-2026-09-27.log)
+(fresh-T4 transcript: all 7 cells OK, warm ~24 s), and
 [colab/proof-served-through-tunnel.png](colab/proof-served-through-tunnel.png)
-(generated on the VM, fetched through the public tunnel from a different
-machine).
+(generated on the VM via `txt2img.py`, fetched through the public tunnel from
+a different machine, 34 s round trip).
 
 ## Quickstart (human, browser only)
 
@@ -98,7 +106,7 @@ path: [references/01-manual-steps.md](references/01-manual-steps.md).
 SKILL.md                     ← agents start here (routing + 12 invariants)
 colab/run-qwen-image-t4.ipynb        ← the notebook (built, verified on a fresh T4)
 colab/run-qwen-image-t4_output.ipynb ← the executed notebook from the verification run
-colab/verification-turbo-2026-09-26.log ← fresh-T4 transcript of the turbo verification
+colab/verification-r256-2026-09-27.log ← fresh-T4 transcript of the r256 verification
 colab/proof-served-through-tunnel.png ← image fetched through the public tunnel
 samples/                     ← raw outputs: turbo 6-step + no-LoRA baseline, same prompts/seed
 clients/txt2img.py           ← stdlib-only client (turbo default, --no-turbo baseline)
@@ -116,10 +124,11 @@ scripts/verify_env.py        ← sanity-check a machine before driving the lane
 ## Status
 
 - [x] Notebook verified cell-by-cell on a fresh free T4 (2026-09-21; turbo
-      update re-verified 2026-09-26)
+      update re-verified 2026-09-26; r256 default re-verified 2026-09-27)
 - [x] API URL proven reachable from outside Colab; image served through the tunnel
 - [x] `txt2img.py` tested end-to-end through the tunnel (turbo + `--no-turbo`)
-- [x] Viggle turbo LoRA verified on free-tier GGUF weights (2026-09-26)
+- [x] Viggle turbo LoRA verified on free-tier GGUF weights (2026-09-26); r256
+      default cross-surface verified Colab + Kaggle (2026-09-27)
 - Untested, honestly labeled: turbo at 1024², cfg 1.0 without the LoRA at 12
   steps, Q8_0 speed, `LoraLoaderModelOnly` merge quality
 
